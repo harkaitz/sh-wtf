@@ -1,0 +1,121 @@
+#!/bin/sh -e
+##:
+#h: Usage: wtf [-f dbfile][-u][-o] [-t TYPE|l] [is] [TERM...]
+#h:
+#h: Look up the meaning of a term in acronym databases.
+#h:
+#h: DB: PREFIX/share/misc/acronyms[.TYPE][-o] wtf_NAME.TYPE
+#h: Env: ACRONYMDB ACRONYMDB_PATH
+##:
+wtf() {
+    local OPTIND=1 optopt dbfile="${ABRONYMDB}"
+    local mode file suff='' type='' update= regex=
+    
+    # Parse command line arguments.
+    while getopts "f:ot:u" optopt; do
+        case $optopt in
+            f)  dbfile="${OPTARG}";;
+            o)  suff="-o";;
+            t)  type="${OPTARG}";;
+            u)  update=y;;
+            \?) return 1;;
+        esac
+    done
+    shift $(( $OPTIND - 1 ))
+    if test @"$1" = @"is"; then
+        shift
+    fi
+
+    # Update cache.
+    if test -n "${update}"; then
+        wtf_list_nocache > "${WTF_CACHE}"
+    fi
+
+    # List dictionaries/calc cache.
+    if test @"${type}" = @"l"; then
+        wtf_list "${dbfile}" ""
+        return 0
+    else
+        regex="${type}${suff}"
+    fi
+        
+    # Search term.
+    if test -n "$1"; then
+        local aa="$*"
+        local bb="$(echo "$*" | tr '[:lower:]' '[:upper:]')"
+        local cc="$(echo "$*" | tr '[:upper:]' '[:lower:]')"
+        wtf_list "${dbfile}" "${regex}" | if true; then
+            while read -r mode type file; do
+                case "${mode}" in
+                    f) awk -F '	' \
+                           -v aa="$aa" -v bb="$bb" -v cc="$cc" \
+                           '$1 ~ aa || $1 ~ bb || $1 ~ cc { printf "%s: %s\n", $1, $2 }' "${file}"
+                       ;;
+                    x) "${file}" "$*" &
+                       ;;
+                esac
+            done
+            wait
+        fi
+    elif test ! -n "${update}"; then
+        echo >&2 "wtf: error: Please specify a term."
+        return 1
+    fi
+    
+    #
+    return 0
+}
+wtf_show_variables() {
+    echo "ACRONYMDB      : ${ACRONYMDB}"
+    echo "ACRONYMDB_PATH : ${ACRONYMDB_PATH}"
+    echo "WTF_CACHE      : ${WTF_CACHE}"
+}
+wtf_calc_variables() {
+    WTF_CACHE="${WTF_CACHE:-${HOME}/.wtf.cache}"
+}
+# --------------------------------------------------------------------
+wtf_list() {
+    local dbfile="$1" regex="${2:-.*}"
+    if test -n "${dbfile}"; then
+        echo "f @ $1"
+        return 0
+    fi
+    if test -f "${WTF_CACHE}"; then
+        awk -v b="${regex}" '$2 ~ b { print }' "${WTF_CACHE}"
+    else
+        wtf_list_nocache | awk -v b="${regex}" '$2 ~ b { print }'
+    fi
+}
+wtf_list_nocache() {
+    local IFS
+    if true; then
+        case "$(uname -s)" in
+            Windows_NT) IFS=';';;
+            *)          IFS=':';;
+        esac
+        for d in ${ACRONYMDB_PATH} /usr/local/share/misc /usr/share/misc; do
+            if test -d "${d}"; then
+                find "${d}" -mindepth 1 -maxdepth 1 -type f -name "acronyms*" -exec printf 'f %s\n' '{}' ';'
+            fi
+        done
+        for d in ${PATH}; do
+            if test -d "${d}"; then
+                find "${d}" -mindepth 1 -maxdepth 1 -type f -name "wtf_*" -exec printf 'x %s\n' '{}' ';'
+            fi
+        done
+    fi | sed '
+        s|\.\([^ \.]*\)$|.\1 \1|
+    ' | while read -r a b c d; do
+        echo "$a ${c:-@} $b"
+    done
+}
+# --------------------------------------------------------------------
+wtf_calc_variables
+if test @"${SCRNAME:-$(basename "$0")}" = @"wtf"; then
+    MSYS_NO_PATHCONV=1
+    case "${1}" in
+        ''|-h|--help) sed -n 's/^ *#h: \{0,1\}//p' "$0";;
+        -*V*)         wtf_show_variables ;;
+        *)            wtf "$@"; exit 0;;
+    esac
+fi
