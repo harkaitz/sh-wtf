@@ -24,4 +24,5 @@ install: install-sh
 install-sh:
 	mkdir -p $(DESTDIR)$(PREFIX)/bin
 	cp bin/wtf $(DESTDIR)$(PREFIX)/bin
+	cp bin/wtf-quiz $(DESTDIR)$(PREFIX)/bin
 ## -- BLOCK:sh --

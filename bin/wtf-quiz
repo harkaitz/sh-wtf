@@ -1,0 +1,51 @@
+#!/bin/sh -e
+##:
+#h: Usage: wtf-quiz [-V]
+#h:
+#h: Acronym Quiz.
+##:
+. wtf
+wtf_quiz() {
+    local line
+    clear
+    echo "${WTF_QUIZ_HEADER:-WTF Quiz}"
+    echo "${bar}"
+    echo "Type enter to start."
+    read -r line
+    while true; do
+        local bar='________________________________________________________________________'
+        clear
+        echo "${WTF_QUIZ_HEADER:-WTF Quiz}"
+        echo "${bar}"
+        local acronym="$(wtf '^[^#]' | sed 's|:.*||' | sed '/\./d;/\[/d' | shuf -n 10 | ${SLOT_MACHINE:-head -n 1})"
+        if test ! -n "${acronym}"; then
+            echo >&2 "wtf-quiz: error: No acronyms."
+            return 1
+        fi
+        if test -n "${SLOT_MACHINE}"; then
+            echo "${bar}"
+        fi
+        echo "What does ${acronym} mean?"
+        read -r line
+        clear
+        echo "${WTF_QUIZ_HEADER:-WTF Quiz}"
+        echo "${bar}"
+        wtf "^${acronym}\$"
+        read -r line
+    done
+}
+wtf_quiz_show_variables() {
+    cat <<-EOF
+	SLOT_MACHINE    : ${SLOT_MACHINE:-head -n 1}
+	WTF_QUIZ_HEADER : ${WTF_QUIZ_HEADER}
+	EOF
+}
+# --------------------------------------------------------------------
+if test @"${SCRNAME:-$(basename "$0")}" = @"wtf-quiz"; then
+    MSYS_NO_PATHCONV=1
+    case "${1}" in
+        -h|--help) sed -n 's/^ *#h: \{0,1\}//p' "$0";;
+        -*V*)      wtf_quiz_show_variables; exit 0;;
+        *)         wtf_quiz "$@"; exit 0;;
+    esac
+fi

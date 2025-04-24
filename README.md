@@ -14,6 +14,12 @@ wtf
     DB: PREFIX/share/misc/acronyms[.TYPE][-o] wtf_NAME.TYPE
     Env: ACRONYMDB ACRONYMDB_PATH
 
+wtf-quiz
+
+    Usage: wtf-quiz [-V]
+    
+    Acronym Quiz.
+
 ## Collaborating
 
 For making bug reports, feature requests, support or consulting visit
